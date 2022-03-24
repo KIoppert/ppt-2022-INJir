@@ -1,6 +1,6 @@
 from socket import *
 import json
-
+#
 def Connect():
     client_socket.sendto(b'INIT_CIRC', socket_address)
     data_ = socket.recv()
