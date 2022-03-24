@@ -1,9 +1,10 @@
 from socket import *
 import sys
+#
 
 host = str(input())
 port = int(input())
-addr = (host,port)
+addr = (host, port)
 
 udp_socket = socket(AF_INET, SOCK_DGRAM)
 
