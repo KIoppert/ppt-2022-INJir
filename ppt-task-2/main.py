@@ -1,80 +1,94 @@
-from socket import *
+import socket
+import base64
 import json
-#
-def Connect():
-    client_socket.sendto(b'INIT_CIRC', socket_address)
-    data_ = socket.recv()
-    data_ = bytes.decode(data_)
-    data_ = client_socket.recvfrom(1024)
+import os
+
+
+def Receive():
+    data_ = client.recv(2048)
+    if data_ == b'EXIT 1' or data_ == b'EXIT 2':
+        print('Аварийное завершение программы')
+        client.close()
+        raise SystemExit
     return data_
 
-def Check_Status():
-    client_socket.sendto(b'CIRC_STATE', socket_address)
-    data_ = socket.recv()
-    data_ = bytes.decode(data_)
-    data_ = client_socket.recvfrom(1024)
+
+def ReadingFile():
+    with open('STATES.json', 'r', encoding='utf-8') as f:
+        text = json.load(f)
+    count = 0
+    for i in text.values():
+        if count == 2 and i == True:
+            Emergency('Достигнута предельная деформация демпфера')
+        if count == 1 and i == True:
+            Emergency('Нажата кнопка экстренной остановки')
+        if count == 0 and i == True:
+            pass
+        if count == 3:
+            if min(i) < 50:
+                Emergency('Превышена предельная дистанция дальномера')
+        count += 1
+
+
+def Check():
+    client.sendto(b'CIRC_STATE', address)
+    data_ = Receive()
     return data_
 
-def Emergency():
-    client_socket.sendto(b'ALARM', socket_address)
-    data_ = socket.recv()
-    data_ = bytes.decode(data_)
-    data_ = client_socket.recvfrom(1024)
-    Values()
-    if data_ == 'STOPPED':
-        return 'Exit'
 
 def Values():
-    client_socket.sendto(b'CIRC_ALL_STATE', socket_address)
-    status = open('STATE.json')
-    data_ = socket.recv()
-    data_ = bytes.decode(data_)
-    data_ = client_socket.recvfrom(1024)
-    status.write(data_)
-    with open('STATE.json', 'r', encoding='utf8') as f:
-        text = f.read()
-    stat = json.loads(text)
-    for i, k in stat.items():
-        if i == 'state' and k == 'false ':
-            return 'Контур разомкнут'
-        if i == 'ebutton' and k == 'true':
-            return 'Нажата кнопка экстренной остановки'
-        if i == 'end_cap' and k == 'true':
-            return 'Достигнута предельная деформация демпфера'
-        if i == 'dist' and min(k) < 50:
-            return 'Превышена предельная дистанция дальномера'
-        return data_
-
-def Break():
-    print('Не удалось установить подключение')
-
-host = '127.0.0.1'
-port = 80
+    client.sendto(b'CIRC_ALL_STATE', address)
+    f = open('STATES.json', 'wb')
+    packet, _ = client.recvfrom(BUFF_SIZE)
+    data_ = base64.b64decode(packet, ' /')
+    if data_ == b'EXIT 1' or data_ == b'EXIT 2':
+        print('Аварийное завершение программы')
+        client.close()
+        raise SystemExit
+    data_.decode('utf-8')
+    f.write(data_)
+    f.close()
+    ReadingFile()
 
 
-socket_address = (host, port)
+def Emergency(Error):
+    # Values()
+    while True:
+        print('Внимание, нарушение контура безопасности!')
+        print(Error)
+        client.sendto(b'ALARM', address)
+        data_ = Receive()
+        if data_ == b'STOPPED':
+            break
+    return "Safety"
+
 
 BUFF_SIZE = 65536
-client_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,BUFF_SIZE)
-client_socket.bind(socket_address)
+client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFF_SIZE)
 
+client.settimeout(5)
+
+ipAdr = os.environ['host']
+port = os.environ['port']
+address = (ipAdr, port)
+client.connect(address)
+client.sendto(b'INIT_CIRC', address)
+print('Подключение...')
 try:
-    data = Connect()
-except client_socket.timeout(5):
-    Break()
-if data == 'OK':
-    client_socket.send('Установлено подключение к контуру безопасности')
+    data = Receive()
+except TimeoutError:
+    print('Не удалось установить подключение')
+    client.close()
+    raise SystemExit
+
+if data == b'OK':
+    print('Установлено подключение к контуру безопасности')
     while True:
-        data = Check_Status()
-
-        if data == 'SOLID':
-            pass
-
-        elif data == 'BREAK':
-            while True:
-                code = Emergency()
-
-                if code == 'Exit':
-                    break
-        Values()
+        data = Check()
+        if data == b"BREAK":
+            Values()
+        elif data == b'SOLID':
+            Values()
+    client.close()
+    f.close()
