@@ -1,5 +1,4 @@
 import socket
-import base64
 import json
 import os
 
@@ -40,7 +39,7 @@ def Values():
     client.sendto(b'CIRC_ALL_STATE', address)
     f = open('STATES.json', 'wb')
     packet, _ = client.recvfrom(BUFF_SIZE)
-    data_ = base64.b64decode(packet, ' /')
+    data_ = packet
     if data_ == b'EXIT 1' or data_ == b'EXIT 2':
         print('Аварийное завершение программы')
         client.close()
@@ -68,7 +67,6 @@ client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFF_SIZE)
 
 client.settimeout(5)
-
 ipAdr = os.environ['host']
 port = os.environ['port']
 address = (ipAdr, port)
