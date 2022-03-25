@@ -4,7 +4,12 @@ import os
 
 
 def Receive():
-    data_ = client.recv(2048)
+    try:
+        data_ = client.recv(2048)
+    except TimeoutError:
+        print('Превышенно время ожидания')
+        client.close()
+        raise SystemExit
     if data_ == b'EXIT 1' or data_ == b'EXIT 2':
         print('Аварийное завершение программы')
         client.close()
@@ -38,7 +43,12 @@ def Check():
 def Values():
     client.sendto(b'CIRC_ALL_STATE', address)
     f = open('STATES.json', 'wb')
-    packet, _ = client.recvfrom(BUFF_SIZE)
+    try:
+        packet, _ = client.recvfrom(BUFF_SIZE)
+    except TimeoutError:
+        print('Превышенно время ожидания')
+        client.close()
+        raise SystemExit
     data_ = packet
     if data_ == b'EXIT 1' or data_ == b'EXIT 2':
         print('Аварийное завершение программы')
@@ -69,7 +79,7 @@ client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFF_SIZE)
 client.settimeout(5)
 ipAdr = os.environ['host']
 port = os.environ['port']
-address = (ipAdr, port)
+address = (ipAdr, int(port))
 client.connect(address)
 client.sendto(b'INIT_CIRC', address)
 print('Подключение...')
