@@ -8,12 +8,12 @@ client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFF_SIZE)
 
 ipAdr = os.environ['host']
 port = os.environ['port']
-address = (ipAdr, port)
+address = (ipAdr, int(port))
 client.connect(address)
 
 client.sendto(b'YOUNG_INIT', address)
 data_ = client.recv(2048)
-if data_ == b'OK':
+if data_ == b'YOUNG_START':
     client.sendto(b'YOUNG_HOME', address)
 
     client.sendto(b'YOUNG_LMOVE:25.113:0.463:8.15:', address)
